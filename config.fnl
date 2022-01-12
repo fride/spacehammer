@@ -316,8 +316,6 @@
 ;; Main Menu & Config
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(var current-bunches [return])
-
 (local menu-items
        [{:key    :space
          :title  "Alfred"
@@ -338,7 +336,7 @@
          :items media-bindings}
         {:key   :b
          :title "bunches"
-         :items current-bunches}
+         :action bunches.show-bunches }
         {:key   :x
          :title "Emacs"
          :items emacs-bindings}])
@@ -491,13 +489,8 @@
         :items menu-items
         :keys  common-keys
         :enter (fn [] 
-              
-              (let [new-bunches (bunches.create-bunch-menu)]
-              (set current-bunches new-bunches)
-              (print (fennel.view current-bunches))
               (windows.hide-display-numbers)) 
-               
-              )              
+              
         :exit  (fn [] (windows.hide-display-numbers))
         :apps  apps
         :hyper {:key :F18}})
@@ -535,5 +528,12 @@
 
 (print (fennel.view (create-split-layout :1 :2)))
 
+(fn str-split [sep inputstr] (icollect [s (string.gmatch inputstr (.. "([^" sep "]+)") )] s))
+(print (fennel.view (str-split "/" "a/b/c")))
 
+(fn debug [value] (print (fennel.view value)))
+
+(debug (collect [i bunch (ipairs (bunches.list-bunches))] (values i {
+        :text (. (str-split "/" bunch) 1)
+        :key (.. i "") })))
 config
