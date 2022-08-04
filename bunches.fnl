@@ -1,51 +1,58 @@
 (require-macros :lib.macros)
-; (local {:contains? contains?
-;         :for-each  for-each
-;         :map       map
-;         :merge     merge
-;         :reduce    reduce
-;         :split     split
-;         :some      some} 
-;     (require :lib.functional))
+(local utils (require :utils))
 
-(fn str-split [sep inputstr] (icollect [s (string.gmatch inputstr (.. "([^" sep "]+)") )] s))
+(local {: contains? : for-each : map : filter : merge : reduce : split : some : concat}
+       (require :lib.functional))
 
-(fn debug [value] ((print (fennel.view value))))
+;; TODO move to utils
+(fn str-split [sep inputstr]
+  (icollect [s (string.gmatch inputstr (.. "([^" sep "]+)"))]
+    s))
 
-(fn list-bunches [] (match (hs.osascript.applescript "tell application \"Bunch\" to list bunches")
+(fn debug [value]
+  ((print (fennel.view value))))
+
+(fn list-bunches []
+  (match (hs.osascript.applescript "tell application \"Bunch\" to list bunches")
     (ok bunches desc) bunches))
 
-(fn launch-bunch [name] 
-    (alert name)    
-     (hs.osascript.applescript (.. "tell application \"Bunch\" to open bunch \"" name "\"")))
-
-(fn create-bunch-menu [] 
-    (collect [i bunch (ipairs (list-bunches))] (values i {
-        :text bunch
-        :index i
-        :action (fn [] (launch-bunch bunch))
-        :key (.. i "") })))
-
-(fn create-bunch-choices [] 
-    (collect [i bunch (ipairs (list-bunches))] (values i {
-        :text (match (str-split "/" bunch)
-                [_ t]  t
-                [t] t)
-        :subText bunch
-        :key (.. i "") })))
+(fn list-open-bunches []
+  (match (hs.osascript.applescript "tell application \"Bunch\" to list open bunches")
+    (ok bunches desc) bunches))
 
 (fn toggle-selected-bunch [data]
-    (launch-bunch (. data :text)))
+  (if (. data :open)
+    (utils.run-script (.. "tell application \"Bunch\" to open bunch \"" (. data :text) "\""))
+    (utils.run-script (.. "tell application \"Bunch\" to close bunch \"" (. data :text) "\""))))
+  
+(fn create-bunch-choice [open] 
+  (fn [bunch] {
+          :text (match (str-split "/" bunch)
+                       [_ t] t
+                       [t] t)
+          :subText (if (= open true)
+              (.. "open " bunch)
+              (.. "closed " bunch))
+          :icon nil
+          :open: open
+          :title bunch
+        }))
 
-(fn show-bunches [] (let [chooser (hs.chooser.new toggle-selected-bunch)
-      bunches (create-bunch-choices)]
+(fn get-bunches []
+  (let [all (list-bunches)
+        open (list-open-bunches)
+        closed (fn [e]
+                 (not (contains? e open)))]
+    (concat (map (create-bunch-choice false) (filter closed all)) 
+            (map (create-bunch-choice true) open))))
+
+(fn show-bunches []
+  (let [chooser (hs.chooser.new toggle-selected-bunch)
+        bunches (get-bunches)]
     (print (fennel.view bunches))
     (: chooser :choices bunches)
-    (: chooser :show )))
+    (: chooser :searchSubText true)
+    (: chooser :show)))
 
-{
-    : create-bunch-menu
-    : launch-bunch
-    : show-bunches
-    : list-bunches
-}
+{ : show-bunches : list-bunches : str-split}
+
